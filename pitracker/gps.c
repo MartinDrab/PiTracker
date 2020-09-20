@@ -163,6 +163,15 @@ int account_sms_callback(int SerialFD, const char* Phone, EControlCommand Type, 
 			
 				if (ret == 0)
 					ret = account_login(Phone, Args[0]);
+			
+				if (ret == 0) {
+					ret = accounts_save();
+					if (ret == 0)
+						ret = settings_save(_configFile, ':');
+
+					if (ret != 0)
+						log_warning("Unable to save settings: %i", ret);
+				}
 			}
 
 			switch (ret) {
@@ -191,6 +200,11 @@ int account_sms_callback(int SerialFD, const char* Phone, EControlCommand Type, 
 			break;
 		case eccChangePassword:
 			ret = account_set_password(Phone, Args[0], Args[1]);
+			if (ret == 0) {
+				ret = accounts_save();
+				if (ret == 0)
+					ret = settings_save(_configFile, ':');
+			}
 			break;
 		default:
 			break;
@@ -222,9 +236,17 @@ int gps_control_sms_callback(int SerialFD, const char *Phone, EControlCommand Ty
 	switch (Type) {
 		case eccGPSOn:
 			ret = command_gnss_enable(SerialFD, 1);
+			if (ret == 0) {
+				settings_value_set_int("gps", 0, 1);
+				settings_save(_configFile, ':');
+			}
 			break;
 		case eccGPSOff:
 			ret = command_gnss_enable(SerialFD, 0);
+			if (ret == 0) {
+				settings_value_set_int("gps", 0, 0);
+				settings_save(_configFile, ':');
+			}
 			break;
 		case eccMap:
 			ret = command_gnss_status(SerialFD, &gnssStatus);
@@ -287,13 +309,17 @@ int gprs_control_sms_callback(int SerialFD, const char* Phone, EControlCommand T
 	switch (Type) {
 		case eccGPRSOn:
 			ret = command_gprs_connect(SerialFD, 1);
-			if (ret != 0)
-				log_error("Unable to turn GPRS on", ret);
+			if (ret == 0) {
+				settings_value_set_int("gprs", 0, 1);
+				settings_save(_configFile, ':');
+			}
 			break;
 		case eccGPRSOff:
 			ret = command_gprs_connect(SerialFD, 0);
-			if (ret != 0)
-				log_error("Unable to turn GPRS off", ret);
+			if (ret == 0) {
+				settings_value_set_int("gprs", 0, 0);
+				settings_save(_configFile, ':');
+			}
 			break;
 		case eccAPN:
 			un = "";
@@ -305,8 +331,6 @@ int gprs_control_sms_callback(int SerialFD, const char* Phone, EControlCommand T
 				pass = Args[3];
 
 			ret = command_apn_set(SerialFD, Args[0], Args[1], un, pass);
-			if (ret != 0)
-				log_error("Unable to set APN: %i", ret);
 			break;
 		default:
 			ret = -1;
@@ -379,7 +403,7 @@ static int _sms_process(int SerialFD, const SMS_MESSAGE* Msg)
 	const CONTROL_COMMAND* cc = NULL;
 	log_enter("SerialFD=%i; Msg=0x%p", SerialFD, Msg);
 
-	ret = field_array_get(Msg->Text, ',', &arr, &arrSize);
+	ret = field_array_get(Msg->Text, ' ', &arr, &arrSize);
 	if (ret == 0) {
 		if (arrSize == 0) {
 			ret = -1;
@@ -396,7 +420,7 @@ static int _sms_process(int SerialFD, const SMS_MESSAGE* Msg)
 
 		if (ret == 0) {
 			if (cc->Callback != NULL) {
-				if (cc->ArgCount < arrSize) {
+				if (cc->ArgCount <= arrSize - 1) {
 					sendResult = 1;
 					ret = account_logged_in(Msg->PhoneNumber, &loggedIn);
 					if (ret == ENOENT) {
@@ -517,17 +541,20 @@ int main(int argc, char **argv)
 			if (ret == 0 && pinRequired) {
 				char* pin = NULL;
 
-				fprintf(stderr, "PIN is required");
+				fprintf(stderr, "PIN is required\n");
 				ret = settings_value_get_string("pin", 0, &pin, NULL);
 				if (ret != 0) {
 					ret = -1;
-					fprintf(stderr, "PIN not specified (use -p ?string>");
+					fprintf(stderr, "PIN not specified (use -p <string>)\n");
 				}
 
 				if (ret == 0) {
 					ret = command_pin_enter(serialFD, pin);
 					if (ret != 0)
 						log_error("Invalid PIN %s", pin);
+				
+					if (ret == 0)
+						sleep(10);
 				}
 			}
 
@@ -618,7 +645,7 @@ int main(int argc, char **argv)
 								if (ret != 0)
 									log_error("Unable to enable GNSS: %i", ret);
 							
-								sleep(60);
+								serial_response_wait(serialFD, 60, 0, NULL, NULL);
 							}
 
 							if (ret == 0) {

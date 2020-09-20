@@ -318,8 +318,11 @@ int command_sms_read(int SerialFD, int Index, PSMS_MESSAGE Message)
 	if (ret == 0) {
 		ret = _process_sms(sctOne, "+CMGR: ", r.Lines, r.LineCount, &msgs, &msgCount);
 		if (ret == 0) {
-			assert(msgCount == 1);
-			*Message = msgs[0];
+			if (msgCount > 0) {
+				assert(msgCount == 1);
+				*Message = msgs[0];
+			} else ret = ENOENT;
+
 			free(msgs);
 		}
 

@@ -20,8 +20,19 @@ static size_t _accountCount = 0;
 
 static PACCOUNT_RECORD _account_get(const char* Login)
 {
+	PACCOUNT_RECORD tmp = NULL;
 	PACCOUNT_RECORD ret = NULL;
 	log_enter("Login=\"%s\"", Login);
+
+	tmp = _accounts;
+	for (size_t i = 0; i < _accountCount; ++i) {
+		if (strcmp(tmp->Login, Login) == 0) {
+			ret = tmp;
+			break;
+		}
+
+		++tmp;
+	}
 
 	log_exit("0x%p", ret);
 	return ret;
@@ -247,6 +258,8 @@ int accounts_save(void)
 			ret = settings_value_add("account", line);
 			if (ret != 0)
 				break;
+
+			++tmp;
 		}
 	}
 

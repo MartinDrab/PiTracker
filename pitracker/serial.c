@@ -187,6 +187,12 @@ int serial_response_wait(int fd, int Timeout, int OKSearch, char **Response, siz
 				break;
 			case -1:
 				ret = errno;
+				if (ret == EINTR) {
+					ret = 0;
+					transmitted = 1;
+					Timeout -= 1;
+					log_warning("poll() interrupted");
+				}
 				break;
 			default:
 				ret = 0;
