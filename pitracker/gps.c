@@ -172,11 +172,11 @@ int account_sms_callback(int SerialFD, const char* Phone, EControlCommand Type, 
 					break;
 				case EACCES:
 					ret = 0;
-					strncpy(msg, "ALREADY_LOGGED_IN", sizeof(msg) / sizeof(msg[0]));
+					strncpy(msg, "INVALID_PASSWORD", sizeof(msg) / sizeof(msg[0]));
 					break;
 				case ENOENT:
 					ret = 0;
-					strncpy(msg, "INVALID_PASSWORD", sizeof(msg) / sizeof(msg[0]));
+					strncpy(msg, "UNKNOWN_ACCOUNT", sizeof(msg) / sizeof(msg[0]));
 					break;
 				default:
 					break;

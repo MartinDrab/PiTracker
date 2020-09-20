@@ -58,3 +58,4 @@ tmp
 
 # Visual Studio user-specific settings
 *.user
+.vs
